@@ -16,11 +16,11 @@ def _client():
     return genai.Client(api_key=api_key)
 
 DEFAULT_FRAME_PROMPT = (
-"You are a scene context extractor for still frames. For EACH input image, respond with a compact JSON array of same length,\n"
+"You are a scene context extractor for still frames, which will be used to generate context-aware subtitles and dubbing in Singaporean English dialect so that it is relatable to a Singapore-based audience. For EACH input image, respond with a compact JSON array of same length,\n"
 "where each element corresponds to the respective image, with the following fields:\n"
 "- vision.labels: up to 5 tags (indoor/outdoor, scene, notable objects).\n"
 "- vision.time_of_day: day|night|dusk|dawn.\n"
-"- vision.description: 1 short sentence.\n"
+"- vision.description: describe the scene in 1 line like how you would describe it to a Singapore-based friend in Singlish, to make it relatable to them. Feel free to use analogies and metaphors to make it more relatable.\n"
 "- audio: leave empty array ([]).\n"
 "Do NOT include any prose; return JSON only."
 )
