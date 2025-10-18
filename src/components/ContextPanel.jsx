@@ -4,7 +4,17 @@ import {
   Settings, ChevronDown, Wand2, Download, FileText, Loader2, AlertCircle
 } from 'lucide-react'
 
-function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerating, generationError }) {
+function ContextPanel({
+  settings,
+  setSettings,
+  onGenerate,
+  videoFile,
+  subtitles,
+  isGenerating,
+  isTranslating,
+  generationError,
+  detectedLanguage
+}) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
 
   const handleInputChange = (field, value) => {
@@ -35,7 +45,7 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerati
             <select
               value={settings.targetLanguage}
               onChange={(e) => handleInputChange('targetLanguage', e.target.value)}
-              className="w-full bg-dark-elevated border border-dark-border rounded-lg px-4 py-2.5 
+              className="w-full bg-dark-elevated border border-dark-border rounded-lg px-4 py-2.5
                 text-sm text-gray-200 focus:outline-none focus:border-accent-primary cursor-pointer"
             >
               <option value="en">English</option>
@@ -49,6 +59,11 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerati
               <option value="hi">Hindi</option>
               <option value="pt">Portuguese</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1.5">
+              {subtitles && subtitles.length > 0
+                ? 'Change language to auto-translate subtitles'
+                : 'Language you want subtitles in (auto-translates if different from source)'}
+            </p>
           </div>
 
           {/* Source Language */}
@@ -60,7 +75,7 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerati
             <select
               value={settings.sourceLanguage}
               onChange={(e) => handleInputChange('sourceLanguage', e.target.value)}
-              className="w-full bg-dark-elevated border border-dark-border rounded-lg px-4 py-2.5 
+              className="w-full bg-dark-elevated border border-dark-border rounded-lg px-4 py-2.5
                 text-sm text-gray-200 focus:outline-none focus:border-accent-primary cursor-pointer"
             >
               <option value="auto">Auto-detect</option>
@@ -72,6 +87,9 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerati
               <option value="ko">Korean</option>
               <option value="zh">Chinese</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1.5">
+              Language spoken in the video (improves transcription accuracy)
+            </p>
           </div>
 
           {/* Cultural Context */}
@@ -184,15 +202,16 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerati
         </div>
       </div>
 
-      {/* Generate Button */}
+      {/* Action Buttons */}
       <div className="space-y-3">
+        {/* Generate Button */}
         <button
           onClick={onGenerate}
-          disabled={!videoFile || isGenerating}
+          disabled={!videoFile || isGenerating || isTranslating}
           className={`
             w-full py-4 rounded-xl font-semibold text-white text-lg
             flex items-center justify-center space-x-3 transition-all
-            ${videoFile && !isGenerating
+            ${videoFile && !isGenerating && !isTranslating
               ? 'bg-gradient-to-r from-accent-primary to-accent-secondary hover:shadow-lg hover:shadow-accent-primary/50 hover:scale-[1.02]'
               : 'bg-dark-border text-gray-500 cursor-not-allowed'
             }
@@ -203,6 +222,11 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerati
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Generating Subtitles...</span>
             </>
+          ) : isTranslating ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Translating...</span>
+            </>
           ) : (
             <>
               <Wand2 className="w-5 h-5" />
@@ -210,6 +234,16 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerati
             </>
           )}
         </button>
+
+        {/* Detected Language Info */}
+        {detectedLanguage && (
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2.5 flex items-center space-x-2">
+            <Globe className="w-4 h-4 text-blue-400" />
+            <p className="text-xs text-blue-300">
+              Detected Language: <span className="font-semibold">{detectedLanguage.toUpperCase()}</span>
+            </p>
+          </div>
+        )}
 
         {/* Error Message */}
         {generationError && (

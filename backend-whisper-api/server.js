@@ -147,6 +147,80 @@ app.post('/api/transcribe', upload.single('video'), async (req, res) => {
   }
 });
 
+// POST endpoint for subtitle translation
+app.post('/api/translate', async (req, res) => {
+  try {
+    const { subtitles, targetLanguage, sourceLanguage } = req.body;
+
+    if (!subtitles || !Array.isArray(subtitles)) {
+      return res.status(400).json({ error: 'Invalid subtitles data' });
+    }
+
+    if (!targetLanguage) {
+      return res.status(400).json({ error: 'Target language is required' });
+    }
+
+    console.log(`Translating ${subtitles.length} subtitles to ${targetLanguage}...`);
+
+    // Prepare subtitle text for translation
+    const subtitleTexts = subtitles.map(sub => sub.text).join('\n');
+
+    // Language name mapping for better context
+    const languageNames = {
+      en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+      ja: 'Japanese', ko: 'Korean', zh: 'Chinese', ar: 'Arabic',
+      hi: 'Hindi', pt: 'Portuguese'
+    };
+
+    const targetLangName = languageNames[targetLanguage] || targetLanguage;
+    const sourceLangName = sourceLanguage ? languageNames[sourceLanguage] || sourceLanguage : 'the source language';
+
+    // Use GPT-4 for translation
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a professional subtitle translator. Translate the following subtitles from ${sourceLangName} to ${targetLangName}. Maintain the same number of lines, preserve timing appropriateness, and keep the natural flow. Only output the translated text, one subtitle per line, without numbering or timestamps.`
+        },
+        {
+          role: 'user',
+          content: subtitleTexts
+        }
+      ],
+      temperature: 0.3 // Lower temperature for more consistent translations
+    });
+
+    const translatedText = completion.choices[0].message.content.trim();
+    const translatedLines = translatedText.split('\n').filter(line => line.trim());
+
+    // Map translations back to subtitle objects
+    const translatedSubtitles = subtitles.map((sub, index) => ({
+      ...sub,
+      text: translatedLines[index] || sub.text // Fallback to original if translation missing
+    }));
+
+    console.log('Translation complete');
+
+    res.json({
+      success: true,
+      subtitles: translatedSubtitles,
+      metadata: {
+        sourceLanguage: sourceLanguage || 'auto',
+        targetLanguage,
+        subtitleCount: translatedSubtitles.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Translation error:', error);
+    res.status(500).json({
+      error: 'Failed to translate subtitles',
+      details: error.message
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
