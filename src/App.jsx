@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Header from './components/Header'
 import VideoUpload from './components/VideoUpload'
 import VideoPlayer from './components/VideoPlayer'
@@ -14,6 +14,8 @@ function App() {
   const [isTranslating, setIsTranslating] = useState(false)
   const [generationError, setGenerationError] = useState(null)
   const [detectedLanguage, setDetectedLanguage] = useState(null)
+  const [progress, setProgress] = useState(null)
+  const [currentJobId, setCurrentJobId] = useState(null)
   const [contextSettings, setContextSettings] = useState({
     targetLanguage: 'en',
     sourceLanguage: 'auto',
@@ -87,6 +89,62 @@ function App() {
     }
   }
 
+  // Poll for progress
+  const progressIntervalRef = useRef(null)
+
+  const pollProgress = async (jobId) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/progress/${jobId}`)
+      if (response.ok) {
+        const progressData = await response.json()
+        setProgress(progressData)
+
+        // Update subtitles incrementally as they arrive
+        if (progressData.subtitles && progressData.subtitles.length > 0) {
+          setSubtitles(progressData.subtitles)
+        }
+
+        // Stop polling if completed or errored
+        if (progressData.status === 'completed' || progressData.status === 'error') {
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current)
+            progressIntervalRef.current = null
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error polling progress:', error)
+    }
+  }
+
+  const startProgressPolling = (jobId) => {
+    setProgress({ percentage: 0, message: 'Starting...', status: 'processing' })
+    setCurrentJobId(jobId)
+
+    // Poll every 500ms
+    progressIntervalRef.current = setInterval(() => {
+      pollProgress(jobId)
+    }, 500)
+  }
+
+  const stopProgressPolling = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+    setProgress(null)
+    setCurrentJobId(null)
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+    }
+  }, [])
+
   const handleGenerateSubtitles = async () => {
     if (!videoFile) {
       setGenerationError('No video file selected')
@@ -96,6 +154,7 @@ function App() {
     setIsGenerating(true)
     setGenerationError(null)
     setSubtitles([]) // Clear existing subtitles
+    setProgress({ percentage: 0, message: 'Preparing...', status: 'processing' })
 
     try {
       // Create FormData to send video file and settings
@@ -121,9 +180,17 @@ function App() {
 
       const data = await response.json()
 
+      // Start progress polling if jobId is returned
+      if (data.jobId) {
+        startProgressPolling(data.jobId)
+      }
+
       console.log('Transcription successful:', data.metadata)
       setSubtitles(data.subtitles)
       setDetectedLanguage(data.metadata.language) // Save detected language
+
+      // Stop progress polling
+      stopProgressPolling()
 
       // Auto-translate if target language differs from detected language
       const detectedLang = data.metadata.language
@@ -139,6 +206,7 @@ function App() {
     } catch (error) {
       console.error('Error generating subtitles:', error)
       setGenerationError(error.message || 'Failed to generate subtitles. Please try again.')
+      stopProgressPolling()
     } finally {
       setIsGenerating(false)
     }
@@ -183,6 +251,7 @@ function App() {
                 isTranslating={isTranslating}
                 generationError={generationError}
                 detectedLanguage={detectedLanguage}
+                progress={progress}
               />
             </div>
           </div>

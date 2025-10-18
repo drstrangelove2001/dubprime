@@ -13,7 +13,8 @@ function ContextPanel({
   isGenerating,
   isTranslating,
   generationError,
-  detectedLanguage
+  detectedLanguage,
+  progress
 }) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
 
@@ -234,6 +235,27 @@ function ContextPanel({
             </>
           )}
         </button>
+
+        {/* Progress Bar */}
+        {isGenerating && progress && (
+          <div className="bg-dark-elevated rounded-lg p-4 border border-dark-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-300">{progress.message || 'Processing...'}</span>
+              <span className="text-sm font-semibold text-accent-primary">{progress.percentage}%</span>
+            </div>
+            <div className="w-full bg-dark-bg rounded-full h-2 mb-2">
+              <div
+                className="bg-gradient-to-r from-accent-primary to-accent-secondary rounded-full h-2 transition-all duration-300"
+                style={{ width: `${progress.percentage}%` }}
+              />
+            </div>
+            {progress.subtitles && progress.subtitles.length > 0 && (
+              <div className="text-xs text-gray-400 text-center">
+                {progress.subtitles.length} subtitles generated...
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Detected Language Info */}
         {detectedLanguage && (
