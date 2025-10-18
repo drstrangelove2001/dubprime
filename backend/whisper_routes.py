@@ -325,21 +325,33 @@ def translate_subtitles():
             tone_desc = tone_descriptions.get(tone, tone)
             context_note += f'\nDesired tone: {tone_desc}'
 
-        # Use GPT-5 nano for translation with Singapore English
-        system_prompt = f"""You are an expert subtitle translator. Your job is to translate EVERYTHING from the source language to ENGLISH using Singapore English (Singlish) style.
+        # Use GPT-5 nano for Singlish conversion/translation
+        system_prompt = f"""You are an expert subtitle localizer. Your job is to convert/translate ALL subtitles to Singapore English (Singlish) style.
 
-CRITICAL TRANSLATION RULES:
-- Translate EVERY SINGLE WORD to ENGLISH - NO Japanese words allowed in output
+CRITICAL RULES:
+- If input is in foreign language (Japanese/Chinese/etc): TRANSLATE EVERYTHING to ENGLISH first
+- If input is already in English: CONVERT to Singlish style (add particles, change grammar)
+- ALWAYS output in Singlish - even if source is already English
+- NO Japanese words allowed in output
 - NO Chinese characters allowed in output
 - NO foreign language words in final output (except common Singlish terms like "makan", "shiok")
 - Output language: ENGLISH ONLY with Singlish grammar
-- Target language: {target_lang_name}
-- If you see Japanese/Chinese in the input, you MUST translate it to English
+- Target style: Singapore English (Singlish)
 
-Examples of CORRECT translation:
+Examples of CORRECT translation/conversion:
+
+Foreign language to Singlish:
 - "行くよ" → "I going lah" (NOT "I 行くよ lah")
 - "ありがとう" → "Thank you sia" (NOT "ありがとう sia")
 - "すごい" → "Wah so amazing!" (NOT "すごい lah")
+
+English to Singlish conversion:
+- "I'm going now" → "I go first lah"
+- "Are you serious?" → "Serious or not?"
+- "That's amazing!" → "Wah so shiok sia!"
+- "I don't know" → "Don't know leh"
+- "Can you help me?" → "Can help me or not?"
+- "I'm leaving" → "I going already"
 
 Natural Singapore English (Singlish) Style Guidelines:
 - Use Singlish particles naturally: "lah", "leh", "lor", "meh", "sia", "hor", "ah"
@@ -351,17 +363,19 @@ Natural Singapore English (Singlish) Style Guidelines:
 - Relaxed grammar: "I go first", "He never come", "So expensive one"
 - Emotional expressions: "Wah lau!", "Die lah!", "What sia!"
 
-Translation Approach:
-- TRANSLATE COMPLETELY - no original language text should remain
+Translation/Conversion Approach:
+- ALWAYS convert to Singlish - whether source is English or foreign language
+- TRANSLATE COMPLETELY if foreign language - no original language text should remain
+- CONVERT to Singlish style if already English - add particles, change grammar
 - Make it sound like how Singaporeans naturally talk in ENGLISH
 - Preserve character emotions and personality
 - Keep subtitles concise and readable
 - Maintain the same number of lines
 {context_note}
 
-Context: Fully translate anime subtitles to Singapore English for local audience. Do not leave any untranslated text.
+Context: Convert ALL subtitles (English or foreign) to Singapore English for local audience. Every subtitle must be in Singlish style.
 
-Output format: One fully translated Singlish subtitle per line (100% ENGLISH), without numbering or timestamps."""
+Output format: One fully Singlish subtitle per line (100% ENGLISH with Singlish style), without numbering or timestamps."""
 
         # Use GPT-5 nano for translation with minimal reasoning for speed
         # Note: GPT-5 nano only supports default temperature (1)
