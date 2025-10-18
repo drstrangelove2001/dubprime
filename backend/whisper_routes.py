@@ -11,6 +11,7 @@ import os
 import subprocess
 import tempfile
 from openai import OpenAI
+from whisper_chunked import transcribe_audio_chunked, get_audio_duration, should_use_chunking
 
 whisper_bp = Blueprint('whisper', __name__)
 
@@ -38,18 +39,15 @@ def extract_audio_ffmpeg(video_path, audio_path):
         bool: True if successful, False otherwise
     """
     try:
+        # Use M4A format (AAC codec) for Whisper API compatibility
         cmd = [
             'ffmpeg',
-            '-accurate_seek',
-            '-ss', '0',
             '-i', str(video_path),
-            '-avoid_negative_ts', 'make_zero',
-            '-fflags', '+genpts',
             '-map', '0:a:0',
             '-vn',
-            '-acodec', 'aac',
-            '-ar', '16000',
-            '-ac', '1',
+            '-acodec', 'aac',  # AAC codec in M4A container
+            '-ar', '44100',     # Keep standard sample rate
+            '-avoid_negative_ts', 'make_zero',
             '-y',
             str(audio_path)
         ]
@@ -107,7 +105,7 @@ def transcribe_video():
         video_path = UPLOAD_FOLDER / filename
         file.save(str(video_path))
 
-        # Create temporary audio file
+        # Create temporary audio file (use .m4a for Whisper API compatibility)
         audio_path = video_path.with_suffix('.m4a')
 
         print(f'Extracting audio from video...')
@@ -124,42 +122,76 @@ def transcribe_video():
         cultural_context = request.form.get('culturalContext', '')
         tone = request.form.get('tone', '')
 
-        # Open audio file for transcription
-        audio_file = open(audio_path, 'rb')
+        # Check audio duration to decide on chunking
+        duration = get_audio_duration(audio_path)
+        use_chunking = should_use_chunking(duration, threshold=600)  # 10 minutes
 
-        # Prepare Whisper API options
-        transcription_options = {
-            'file': audio_file,
-            'model': 'whisper-1',
-            'response_format': 'verbose_json',
-            'timestamp_granularities': ['segment']
-        }
+        if use_chunking:
+            print(f'Using chunked transcription for long video ({duration:.2f}s)')
 
-        # Add language if source language is specified
-        if source_language and source_language not in ['auto', 'auto-detect']:
-            transcription_options['language'] = source_language
+            # Prepare Whisper options
+            whisper_options = {}
+            if source_language and source_language not in ['auto', 'auto-detect']:
+                whisper_options['language'] = source_language
 
-        # Add prompt for better context (optional)
-        if cultural_context or tone:
-            prompt = ''
-            if cultural_context:
-                prompt += f'Cultural context: {cultural_context}. '
-            if tone:
-                prompt += f'Tone: {tone}.'
-            transcription_options['prompt'] = prompt.strip()
+            if cultural_context or tone:
+                prompt = ''
+                if cultural_context:
+                    prompt += f'Cultural context: {cultural_context}. '
+                if tone:
+                    prompt += f'Tone: {tone}.'
+                whisper_options['prompt'] = prompt.strip()
 
-        # Call Whisper API
-        transcription = client.audio.transcriptions.create(**transcription_options)
+            # Use chunked transcription
+            subtitles = transcribe_audio_chunked(
+                audio_path,
+                chunk_duration=300,  # 5-minute chunks
+                **whisper_options
+            )
 
-        # Format the response into subtitles
-        subtitles = []
-        for index, segment in enumerate(transcription.segments):
-            subtitles.append({
-                'id': index + 1,
-                'start': segment.start,
-                'end': segment.end,
-                'text': segment.text.strip()
-            })
+            detected_language = subtitles[0].get('language', 'en') if subtitles else 'en'
+
+        else:
+            print(f'Using standard transcription for short video ({duration:.2f}s)')
+
+            # Open audio file for transcription
+            audio_file = open(audio_path, 'rb')
+
+            # Prepare Whisper API options
+            transcription_options = {
+                'file': audio_file,
+                'model': 'whisper-1',
+                'response_format': 'verbose_json',
+                'timestamp_granularities': ['segment']
+            }
+
+            # Add language if source language is specified
+            if source_language and source_language not in ['auto', 'auto-detect']:
+                transcription_options['language'] = source_language
+
+            # Add prompt for better context (optional)
+            if cultural_context or tone:
+                prompt = ''
+                if cultural_context:
+                    prompt += f'Cultural context: {cultural_context}. '
+                if tone:
+                    prompt += f'Tone: {tone}.'
+                transcription_options['prompt'] = prompt.strip()
+
+            # Call Whisper API
+            transcription = client.audio.transcriptions.create(**transcription_options)
+
+            # Format the response into subtitles
+            subtitles = []
+            for index, segment in enumerate(transcription.segments):
+                subtitles.append({
+                    'id': index + 1,
+                    'start': segment.start,
+                    'end': segment.end,
+                    'text': segment.text.strip()
+                })
+
+            detected_language = transcription.language
 
         print(f'Transcription complete: {len(subtitles)} subtitles generated')
 
@@ -167,9 +199,10 @@ def transcribe_video():
             'success': True,
             'subtitles': subtitles,
             'metadata': {
-                'duration': transcription.duration,
-                'language': transcription.language,
-                'segmentCount': len(subtitles)
+                'duration': duration,
+                'language': detected_language,
+                'segmentCount': len(subtitles),
+                'chunked': use_chunking
             }
         })
 
