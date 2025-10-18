@@ -120,6 +120,49 @@ Transcribes a video file and returns subtitles.
 }
 ```
 
+### POST `/api/translate`
+
+Translates existing subtitles to a target language using GPT-4.
+
+**Request:**
+- Method: `POST`
+- Content-Type: `application/json`
+- Body:
+  ```json
+  {
+    "subtitles": [
+      {
+        "id": 1,
+        "start": 0.0,
+        "end": 3.5,
+        "text": "Hello, this is a subtitle"
+      }
+    ],
+    "targetLanguage": "es",
+    "sourceLanguage": "en"
+  }
+  ```
+
+**Response:**
+```json
+{
+  "success": true,
+  "subtitles": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 3.5,
+      "text": "Hola, este es un subtítulo"
+    }
+  ],
+  "metadata": {
+    "sourceLanguage": "en",
+    "targetLanguage": "es",
+    "subtitleCount": 1
+  }
+}
+```
+
 ### GET `/api/health`
 
 Health check endpoint.
@@ -150,12 +193,22 @@ Health check endpoint.
 
 ## Pricing
 
+### Transcription (Whisper API)
 OpenAI Whisper API costs approximately **$0.006 per minute** of audio transcribed.
 
 Example:
 - 1 minute video = $0.006
 - 10 minute video = $0.06
 - 60 minute video = $0.36
+
+### Translation (GPT-4o-mini)
+Translation uses GPT-4o-mini for high-quality subtitle translation. Costs vary based on subtitle length:
+- Input: **$0.150 per 1M tokens**
+- Output: **$0.600 per 1M tokens**
+
+Typical costs:
+- 100 subtitles (~2000 words) ≈ $0.001 - $0.003
+- Translation is very cost-effective compared to transcription
 
 ## Troubleshooting
 
@@ -183,12 +236,31 @@ The backend is configured to accept requests from any origin. If you still see C
 
 ## How It Works
 
+### Transcription Workflow
 1. **Upload**: User uploads a video file from the frontend
 2. **Extract**: Backend extracts audio from video using FFmpeg
 3. **Transcribe**: Audio is sent to OpenAI Whisper API for transcription
 4. **Format**: Transcription segments are formatted into subtitle objects
-5. **Return**: Subtitles are sent back to the frontend
+5. **Return**: Subtitles are sent back to the frontend with detected language
 6. **Cleanup**: Temporary files are deleted
+
+### Translation Workflow
+Translation happens automatically in two scenarios:
+
+**Scenario 1: During Generation (Target ≠ Detected)**
+1. User sets Target Language (e.g., Spanish) before clicking Generate
+2. Video transcribed in detected language (e.g., English)
+3. System detects language mismatch
+4. **Auto-translates** from English → Spanish immediately
+5. User receives subtitles in Spanish
+
+**Scenario 2: After Generation (User Changes Language)**
+1. User changes Target Language dropdown (e.g., English → French)
+2. **Auto-translation** triggers on language change
+3. Subtitles translate from current language → French
+4. Updated subtitles appear in editor and player
+
+Both workflows use GPT-4o-mini for high-quality translation while preserving timing.
 
 ## Development
 
