@@ -33,3 +33,5 @@ dist-ssr
 # Build
 build
 
+# Media files
+backend-whisper-api/uploads

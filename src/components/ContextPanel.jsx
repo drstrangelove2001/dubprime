@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { 
-  Sparkles, Globe, Languages, MessageSquare, Users, 
-  Settings, ChevronDown, Wand2, Download, FileText
+import {
+  Sparkles, Globe, Languages, MessageSquare, Users,
+  Settings, ChevronDown, Wand2, Download, FileText, Loader2, AlertCircle
 } from 'lucide-react'
 
-function ContextPanel({ settings, setSettings, onGenerate, videoFile }) {
+function ContextPanel({ settings, setSettings, onGenerate, videoFile, isGenerating, generationError }) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
 
   const handleInputChange = (field, value) => {
@@ -185,21 +185,43 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile }) {
       </div>
 
       {/* Generate Button */}
-      <button
-        onClick={onGenerate}
-        disabled={!videoFile}
-        className={`
-          w-full py-4 rounded-xl font-semibold text-white text-lg
-          flex items-center justify-center space-x-3 transition-all
-          ${videoFile
-            ? 'bg-gradient-to-r from-accent-primary to-accent-secondary hover:shadow-lg hover:shadow-accent-primary/50 hover:scale-[1.02]'
-            : 'bg-dark-border text-gray-500 cursor-not-allowed'
-          }
-        `}
-      >
-        <Wand2 className="w-5 h-5" />
-        <span>Generate Subtitles</span>
-      </button>
+      <div className="space-y-3">
+        <button
+          onClick={onGenerate}
+          disabled={!videoFile || isGenerating}
+          className={`
+            w-full py-4 rounded-xl font-semibold text-white text-lg
+            flex items-center justify-center space-x-3 transition-all
+            ${videoFile && !isGenerating
+              ? 'bg-gradient-to-r from-accent-primary to-accent-secondary hover:shadow-lg hover:shadow-accent-primary/50 hover:scale-[1.02]'
+              : 'bg-dark-border text-gray-500 cursor-not-allowed'
+            }
+          `}
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Generating Subtitles...</span>
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-5 h-5" />
+              <span>Generate Subtitles</span>
+            </>
+          )}
+        </button>
+
+        {/* Error Message */}
+        {generationError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-start space-x-2 animate-slide-up">
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-300">Error</p>
+              <p className="text-xs text-red-400 mt-0.5">{generationError}</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Export Options */}
       <div className="bg-dark-surface rounded-2xl border border-dark-border p-6">

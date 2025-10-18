@@ -10,6 +10,8 @@ function App() {
   const [videoUrl, setVideoUrl] = useState(null)
   const [subtitles, setSubtitles] = useState([])
   const [currentTime, setCurrentTime] = useState(0)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationError, setGenerationError] = useState(null)
   const [contextSettings, setContextSettings] = useState({
     targetLanguage: 'en',
     sourceLanguage: 'auto',
@@ -24,15 +26,49 @@ function App() {
     setVideoUrl(url)
   }
 
-  const handleGenerateSubtitles = () => {
-    // This will connect to your backend later
-    console.log('Generating subtitles with context:', contextSettings)
-    // Mock subtitles for now
-    setSubtitles([
-      { id: 1, start: 0, end: 3, text: 'Example subtitle 1' },
-      { id: 2, start: 3, end: 6, text: 'Example subtitle 2' },
-      { id: 3, start: 6, end: 9, text: 'Example subtitle 3' }
-    ])
+  const handleGenerateSubtitles = async () => {
+    if (!videoFile) {
+      setGenerationError('No video file selected')
+      return
+    }
+
+    setIsGenerating(true)
+    setGenerationError(null)
+    setSubtitles([]) // Clear existing subtitles
+
+    try {
+      // Create FormData to send video file and settings
+      const formData = new FormData()
+      formData.append('video', videoFile)
+      formData.append('targetLanguage', contextSettings.targetLanguage)
+      formData.append('sourceLanguage', contextSettings.sourceLanguage)
+      formData.append('culturalContext', contextSettings.culturalContext)
+      formData.append('tone', contextSettings.tone)
+
+      console.log('Sending video to backend for transcription...')
+
+      // Call backend API
+      const response = await fetch('http://localhost:3001/api/transcribe', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to generate subtitles')
+      }
+
+      const data = await response.json()
+
+      console.log('Transcription successful:', data.metadata)
+      setSubtitles(data.subtitles)
+
+    } catch (error) {
+      console.error('Error generating subtitles:', error)
+      setGenerationError(error.message || 'Failed to generate subtitles. Please try again.')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -63,11 +99,13 @@ function App() {
 
             {/* Right side - Context Panel */}
             <div className="lg:col-span-1">
-              <ContextPanel 
+              <ContextPanel
                 settings={contextSettings}
                 setSettings={setContextSettings}
                 onGenerate={handleGenerateSubtitles}
                 videoFile={videoFile}
+                isGenerating={isGenerating}
+                generationError={generationError}
               />
             </div>
           </div>
