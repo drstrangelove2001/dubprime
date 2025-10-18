@@ -63,7 +63,9 @@ function App() {
         body: JSON.stringify({
           subtitles: subs,
           targetLanguage: targetLang,
-          sourceLanguage: sourceLang || detectedLanguage || contextSettings.sourceLanguage
+          sourceLanguage: sourceLang || detectedLanguage || contextSettings.sourceLanguage,
+          culturalContext: contextSettings.culturalContext,
+          tone: contextSettings.tone
         })
       })
 
