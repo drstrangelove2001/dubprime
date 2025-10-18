@@ -29,7 +29,7 @@ app.use(express.json());
 const upload = multer({
   dest: 'uploads/',
   limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB limit
+    fileSize: 500 * 1024 * 1024 // 500MB limit
   },
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'audio/mpeg', 'audio/wav'];
@@ -50,10 +50,20 @@ if (!fs.existsSync('uploads')) {
 function extractAudio(videoPath, audioPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(videoPath)
+      .inputOptions([
+        '-accurate_seek',      // Ensure accurate seeking
+        '-ss 0'               // Start from the beginning
+      ])
+      .outputOptions([
+        '-avoid_negative_ts make_zero',  // Ensure timestamps start at 0
+        '-fflags +genpts',                // Generate presentation timestamps
+        '-map 0:a:0',                      // Map first audio stream only
+        '-vn'                              // Explicitly exclude video
+      ])
       .output(audioPath)
-      .audioCodec('libmp3lame')
-      .audioFrequency(16000) // Whisper works well with 16kHz
-      .audioChannels(1) // Mono audio
+      .audioCodec('aac')           // Use AAC for better timestamp accuracy
+      .audioFrequency(16000)       // Whisper works well with 16kHz
+      .audioChannels(1)            // Mono audio
       .on('end', () => resolve(audioPath))
       .on('error', (err) => reject(err))
       .run();
@@ -71,7 +81,7 @@ app.post('/api/transcribe', upload.single('video'), async (req, res) => {
     }
 
     videoPath = req.file.path;
-    audioPath = videoPath + '.mp3';
+    audioPath = videoPath + '.m4a';
 
     console.log('Extracting audio from video...');
     await extractAudio(videoPath, audioPath);
@@ -150,7 +160,7 @@ app.post('/api/transcribe', upload.single('video'), async (req, res) => {
 // POST endpoint for subtitle translation
 app.post('/api/translate', async (req, res) => {
   try {
-    const { subtitles, targetLanguage, sourceLanguage } = req.body;
+    const { subtitles, targetLanguage, sourceLanguage, culturalContext, tone } = req.body;
 
     if (!subtitles || !Array.isArray(subtitles)) {
       return res.status(400).json({ error: 'Invalid subtitles data' });
@@ -175,20 +185,52 @@ app.post('/api/translate', async (req, res) => {
     const targetLangName = languageNames[targetLanguage] || targetLanguage;
     const sourceLangName = sourceLanguage ? languageNames[sourceLanguage] || sourceLanguage : 'the source language';
 
+    // Build context-aware prompt
+    let contextNote = '';
+    if (culturalContext) {
+      contextNote += `\nCultural context: ${culturalContext}`;
+    }
+    if (tone) {
+      const toneDescriptions = {
+        'neutral': 'balanced and natural',
+        'formal': 'polite and respectful',
+        'casual': 'relaxed and friendly',
+        'humorous': 'fun and engaging'
+      };
+      const toneDesc = toneDescriptions[tone] || tone;
+      contextNote += `\nDesired tone: ${toneDesc}`;
+    }
+
     // Use GPT-4 for translation
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `You are a professional subtitle translator. Translate the following subtitles from ${sourceLangName} to ${targetLangName}. Maintain the same number of lines, preserve timing appropriateness, and keep the natural flow. Only output the translated text, one subtitle per line, without numbering or timestamps.`
+          content: `You are an expert subtitle localizer specializing in natural, conversational translations. Your goal is to convey meaning and emotion, not literal word-for-word translation.
+
+Guidelines:
+- Translate for natural flow and readability in ${targetLangName}
+- Adapt idioms, expressions, and cultural references to ${targetLangName} equivalents
+- Use casual, conversational language that sounds native
+- Prioritize how a native speaker would naturally express the same idea
+- Keep subtitles concise and easy to read quickly
+- Preserve the emotional tone and character personality
+- Avoid overly formal or stilted language unless the original is formal
+- Don't add explanatory notes or extra context
+- Maintain the same number of lines
+${contextNote}
+
+Context: These are anime/video subtitles, so use appropriate localization conventions.
+
+Output format: One translated subtitle per line, without numbering or timestamps.`
         },
         {
           role: 'user',
           content: subtitleTexts
         }
       ],
-      temperature: 0.3 // Lower temperature for more consistent translations
+      temperature: 0.5 // Balanced temperature for natural but consistent translations
     });
 
     const translatedText = completion.choices[0].message.content.trim();
