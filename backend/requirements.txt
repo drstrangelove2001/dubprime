@@ -1,0 +1,24 @@
+# Flask web framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# OpenAI for Whisper and GPT
+openai>=1.0.0
+
+# Environment variables
+python-dotenv>=1.0.1
+
+# Video/Audio processing
+opencv-python>=4.7.0
+numpy>=1.24.0
+moviepy>=1.0.3
+Pillow>=10.3.0
+
+# Google Gemini
+google-genai>=0.3.0
+
+# Data processing
+pandas>=2.0.0
+
+# Utilities
+werkzeug>=3.0.0
