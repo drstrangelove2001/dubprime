@@ -1,14 +1,37 @@
 # DubPrime Backend API
 
-Unified Flask backend for video transcription, translation, and audio processing.
+Unified Flask backend for AI-powered video dubbing and subtitle generation.
 
 ## Features
 
-- **Video Transcription**: OpenAI Whisper API integration for accurate speech-to-text
-  - **Auto-chunking**: Videos over 10 minutes are automatically split into 5-minute chunks to prevent sync drift
-- **Subtitle Translation**: GPT-powered natural language translation with localization
-- **Audio Extraction**: Extract and process audio from video files
-- **Video Analysis**: Gemini-powered video frame analysis
+### **Core Capabilities**
+
+- **🎙️ Video Transcription**: OpenAI Whisper API for accurate speech-to-text
+  - Auto-chunking for videos >10 minutes (prevents sync drift)
+  - Real-time progress updates with incremental subtitle delivery
+  - Multi-language support with auto-detection
+
+- **🌍 Subtitle Translation**: GPT-4 powered natural language translation
+  - Context-aware localization (not literal word-for-word)
+  - Cultural adaptation for idioms and expressions
+  - Tone customization (casual, formal, humorous, neutral)
+
+- **🎬 Video Analysis** (Gemini AI):
+  - Frame-by-frame scene analysis
+  - Automatic cultural context extraction
+  - Scene understanding for better subtitle accuracy
+
+- **🎵 Audio Processing**:
+  - Audio extraction from video
+  - Audio removal (mute videos)
+  - Audio separation (vocals/background) via Demucs
+
+### **Advanced Features**
+
+- Progress tracking with WebSocket-like polling
+- Incremental subtitle updates for long videos
+- Hallucination filtering for cleaner transcripts
+- Batch processing support
 
 ## Setup
 
@@ -152,15 +175,30 @@ Response:
 
 ```
 backend/
-├── app.py                  # Main Flask application
-├── whisper_routes.py       # Whisper transcription & translation routes
-├── requirements.txt        # Python dependencies
-├── .env                    # Environment variables (not in git)
-├── .env.example           # Example environment variables
-├── audio-extraction/       # Audio extraction module
-├── video-analysis/         # Video analysis module
-├── uploads/               # Temporary upload directory
-└── outputs/               # Output directory
+├── app.py                     # Main Flask application
+├── whisper_routes.py          # Whisper transcription & translation
+├── whisper_chunked.py         # Chunked processing for long videos
+├── progress_tracker.py        # Real-time progress tracking
+├── video_context.py           # Video analysis integration
+├── hallucination_filter.py    # Whisper hallucination detection
+├── .env                       # Environment variables (not in git)
+├── .env.example              # Example environment variables
+│
+├── audio-extraction/          # Audio extraction & removal
+│   ├── audio_api.py          # Flask API for audio operations
+│   ├── remove_audio.py       # Audio removal utility
+│   └── ...
+│
+├── audio-separation/          # Audio source separation
+│   └── separate.py           # Demucs vocal/background separation
+│
+├── video-analysis/            # Gemini-powered video analysis
+│   ├── analyze_video_complete.py  # Complete video analysis pipeline
+│   ├── geminicontextor/      # Frame analysis module
+│   └── ...
+│
+├── uploads/                   # Temporary uploads (auto-created)
+└── outputs/                   # Processed outputs (auto-created)
 ```
 
 ## Development
@@ -172,8 +210,38 @@ export FLASK_ENV=development  # or set FLASK_ENV=development on Windows
 python app.py
 ```
 
+## Module Documentation
+
+### Audio Extraction (`audio-extraction/`)
+See [AUDIO_REMOVAL_README.md](audio-extraction/AUDIO_REMOVAL_README.md) for:
+- Removing audio from videos
+- Extracting audio to various formats
+- Batch processing
+
+### Audio Separation (`audio-separation/`)
+Uses Demucs AI model to separate:
+- Vocals from background music
+- Clean dialogue extraction
+- Background audio removal
+
+### Video Analysis (`video-analysis/`)
+Gemini-powered analysis:
+- Frame-by-frame scene understanding
+- Cultural context extraction
+- Automatic scene summaries
+
 ## Notes
 
-- Maximum file size: 500MB
-- Supported formats: MP4, AVI, MOV, MKV, FLV, WMV, WEBM
-- Temporary files are automatically cleaned up after processing
+- **Maximum file size**: 500MB
+- **Supported formats**: MP4, AVI, MOV, MKV, FLV, WMV, WEBM
+- **Temporary files**: Automatically cleaned up after processing
+- **API Keys Required**:
+  - OpenAI (required for transcription/translation)
+  - Gemini (optional, for video analysis)
+
+## Performance
+
+- **Short videos (<10 min)**: ~30-60 seconds processing
+- **Long videos (>10 min)**: Chunked processing, ~1 minute per 5-minute chunk
+- **Translation**: ~5-10 seconds for 100 subtitles
+- **Video Analysis** (optional): Adds ~20-30 seconds

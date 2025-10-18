@@ -11,7 +11,10 @@ import os
 import subprocess
 import tempfile
 from openai import OpenAI
-from whisper_chunked import transcribe_audio_chunked, get_audio_duration, should_use_chunking
+from whisper_chunked import transcribe_audio_chunked, get_audio_duration, should_use_chunking, fill_music_gaps
+import uuid
+from progress_tracker import create_progress, update_progress, get_progress, complete_progress, error_progress
+from hallucination_filter import filter_hallucinations
 
 whisper_bp = Blueprint('whisper', __name__)
 
@@ -21,6 +24,16 @@ client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 # Configuration
 UPLOAD_FOLDER = Path('uploads')
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'mp3', 'wav', 'm4a'}
+
+
+@whisper_bp.route('/api/progress/<job_id>', methods=['GET'])
+def get_transcription_progress(job_id):
+    """Get progress of a transcription job."""
+    progress = get_progress(job_id)
+    if progress:
+        return jsonify(progress)
+    else:
+        return jsonify({'error': 'Job not found'}), 404
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
@@ -95,15 +108,24 @@ def transcribe_video():
     if not allowed_file(file.filename):
         return jsonify({'error': 'Invalid file type'}), 400
 
+    # Create job ID for progress tracking
+    job_id = str(uuid.uuid4())
+
     video_path = None
     audio_path = None
     audio_file = None
 
     try:
+        # Initialize progress tracking
+        create_progress(job_id, total_steps=100)
+        update_progress(job_id, 0, 'Uploading video...', 'processing')
+
         # Save uploaded file
         filename = secure_filename(file.filename)
         video_path = UPLOAD_FOLDER / filename
         file.save(str(video_path))
+
+        update_progress(job_id, 10, 'Extracting audio from video...', 'processing')
 
         # Create temporary audio file (use .m4a for Whisper API compatibility)
         audio_path = video_path.with_suffix('.m4a')
@@ -112,7 +134,10 @@ def transcribe_video():
         success = extract_audio_ffmpeg(video_path, audio_path)
 
         if not success:
+            error_progress(job_id, 'Failed to extract audio from video')
             return jsonify({'error': 'Failed to extract audio from video'}), 500
+
+        update_progress(job_id, 20, 'Analyzing audio...', 'processing')
 
         print(f'Transcribing audio with Whisper...')
 
@@ -128,31 +153,31 @@ def transcribe_video():
 
         if use_chunking:
             print(f'Using chunked transcription for long video ({duration:.2f}s)')
+            update_progress(job_id, 30, 'Transcribing audio (this may take a while for long videos)...', 'processing')
 
             # Prepare Whisper options
             whisper_options = {}
             if source_language and source_language not in ['auto', 'auto-detect']:
                 whisper_options['language'] = source_language
 
-            if cultural_context or tone:
-                prompt = ''
-                if cultural_context:
-                    prompt += f'Cultural context: {cultural_context}. '
-                if tone:
-                    prompt += f'Tone: {tone}.'
-                whisper_options['prompt'] = prompt.strip()
+            # Add context prompt to improve transcription quality
+            if cultural_context:
+                whisper_options['prompt'] = cultural_context
 
-            # Use chunked transcription
-            subtitles = transcribe_audio_chunked(
+            # Use chunked transcription with progress tracking
+            # Progress 30-90 will be handled by chunked transcription
+            subtitles, detected_language = transcribe_audio_chunked(
                 audio_path,
                 chunk_duration=300,  # 5-minute chunks
+                job_id=job_id,
                 **whisper_options
             )
 
-            detected_language = subtitles[0].get('language', 'en') if subtitles else 'en'
+            update_progress(job_id, 90, 'Finalizing subtitles...', 'processing')
 
         else:
             print(f'Using standard transcription for short video ({duration:.2f}s)')
+            update_progress(job_id, 30, 'Transcribing audio...', 'processing')
 
             # Open audio file for transcription
             audio_file = open(audio_path, 'rb')
@@ -169,17 +194,14 @@ def transcribe_video():
             if source_language and source_language not in ['auto', 'auto-detect']:
                 transcription_options['language'] = source_language
 
-            # Add prompt for better context (optional)
-            if cultural_context or tone:
-                prompt = ''
-                if cultural_context:
-                    prompt += f'Cultural context: {cultural_context}. '
-                if tone:
-                    prompt += f'Tone: {tone}.'
-                transcription_options['prompt'] = prompt.strip()
+            # Add context prompt if provided
+            if cultural_context:
+                transcription_options['prompt'] = cultural_context
 
             # Call Whisper API
             transcription = client.audio.transcriptions.create(**transcription_options)
+
+            update_progress(job_id, 80, 'Formatting subtitles...', 'processing')
 
             # Format the response into subtitles
             subtitles = []
@@ -193,10 +215,19 @@ def transcribe_video():
 
             detected_language = transcription.language
 
-        print(f'Transcription complete: {len(subtitles)} subtitles generated')
+            # Fill gaps with music placeholders to maintain sync
+            subtitles = fill_music_gaps(subtitles, duration, gap_threshold=3.0)
+
+            update_progress(job_id, 90, 'Finalizing...', 'processing')
+
+        print(f'Transcription complete: {len(subtitles)} subtitles generated (after filtering)')
+
+        # Mark as complete
+        complete_progress(job_id, 'Transcription complete!')
 
         return jsonify({
             'success': True,
+            'jobId': job_id,
             'subtitles': subtitles,
             'metadata': {
                 'duration': duration,
@@ -208,6 +239,7 @@ def transcribe_video():
 
     except Exception as e:
         print(f'Transcription error: {str(e)}')
+        error_progress(job_id, f'Error: {str(e)}')
         return jsonify({
             'error': 'Failed to transcribe video',
             'details': str(e)
