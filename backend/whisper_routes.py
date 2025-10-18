@@ -1,7 +1,7 @@
 """
 Whisper API Routes
 ------------------
-Routes for video transcription and subtitle translation using OpenAI Whisper and GPT.
+Routes for video transcription and subtitle translation using OpenAI Whisper and GPT-5 nano.
 """
 
 from flask import Blueprint, request, jsonify
@@ -18,7 +18,7 @@ from hallucination_filter import filter_hallucinations
 
 whisper_bp = Blueprint('whisper', __name__)
 
-# Initialize OpenAI client
+# Initialize OpenAI client (for Whisper and GPT-5 nano translation)
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Configuration
@@ -325,27 +325,48 @@ def translate_subtitles():
             tone_desc = tone_descriptions.get(tone, tone)
             context_note += f'\nDesired tone: {tone_desc}'
 
-        # Use GPT-4 for translation
-        system_prompt = f"""You are an expert subtitle localizer specializing in natural, conversational translations. Your goal is to convey meaning and emotion, not literal word-for-word translation.
+        # Use GPT-5 nano for translation with Singapore English
+        system_prompt = f"""You are an expert subtitle translator. Your job is to translate EVERYTHING from the source language to ENGLISH using Singapore English (Singlish) style.
 
-Guidelines:
-- Translate for natural flow and readability in {target_lang_name}
-- Adapt idioms, expressions, and cultural references to {target_lang_name} equivalents
-- Use casual, conversational language that sounds native
-- Prioritize how a native speaker would naturally express the same idea
-- Keep subtitles concise and easy to read quickly
-- Preserve the emotional tone and character personality
-- Avoid overly formal or stilted language unless the original is formal
-- Don't add explanatory notes or extra context
+CRITICAL TRANSLATION RULES:
+- Translate EVERY SINGLE WORD to ENGLISH - NO Japanese words allowed in output
+- NO Chinese characters allowed in output
+- NO foreign language words in final output (except common Singlish terms like "makan", "shiok")
+- Output language: ENGLISH ONLY with Singlish grammar
+- Target language: {target_lang_name}
+- If you see Japanese/Chinese in the input, you MUST translate it to English
+
+Examples of CORRECT translation:
+- "行くよ" → "I going lah" (NOT "I 行くよ lah")
+- "ありがとう" → "Thank you sia" (NOT "ありがとう sia")
+- "すごい" → "Wah so amazing!" (NOT "すごい lah")
+
+Natural Singapore English (Singlish) Style Guidelines:
+- Use Singlish particles naturally: "lah", "leh", "lor", "meh", "sia", "hor", "ah"
+- Drop articles when natural: "Go buy food", "Take MRT"
+- Use "can" for agreement: "Can lah", "Can or not?"
+- Use local expressions: "wah", "alamak", "aiyo", "steady lah", "shiok", "siao", "paiseh"
+- Add "already" at end: "finish already", "done already"
+- Question tags: "right or not?", "got or not?", "is it?"
+- Relaxed grammar: "I go first", "He never come", "So expensive one"
+- Emotional expressions: "Wah lau!", "Die lah!", "What sia!"
+
+Translation Approach:
+- TRANSLATE COMPLETELY - no original language text should remain
+- Make it sound like how Singaporeans naturally talk in ENGLISH
+- Preserve character emotions and personality
+- Keep subtitles concise and readable
 - Maintain the same number of lines
 {context_note}
 
-Context: These are anime/video subtitles, so use appropriate localization conventions.
+Context: Fully translate anime subtitles to Singapore English for local audience. Do not leave any untranslated text.
 
-Output format: One translated subtitle per line, without numbering or timestamps."""
+Output format: One fully translated Singlish subtitle per line (100% ENGLISH), without numbering or timestamps."""
 
+        # Use GPT-5 nano for translation with minimal reasoning for speed
+        # Note: GPT-5 nano only supports default temperature (1)
         completion = client.chat.completions.create(
-            model='gpt-4o-mini',
+            model='gpt-5-nano',
             messages=[
                 {
                     'role': 'system',
@@ -356,7 +377,7 @@ Output format: One translated subtitle per line, without numbering or timestamps
                     'content': subtitle_texts
                 }
             ],
-            temperature=0.5
+            reasoning_effort='minimal'  # Fastest reasoning level for speed
         )
 
         translated_text = completion.choices[0].message.content.strip()

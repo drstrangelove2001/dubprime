@@ -11,7 +11,9 @@ Unified Flask backend for AI-powered video dubbing and subtitle generation.
   - Real-time progress updates with incremental subtitle delivery
   - Multi-language support with auto-detection
 
-- **🌍 Subtitle Translation**: GPT-4 powered natural language translation
+- **🌍 Subtitle Translation**: GPT-5 nano powered natural language translation
+  - **Singapore English (Singlish) by default** - authentic local flavor with "lah", "lor", "sia"
+  - Advanced slang, emotion, and humor capture (GPT-5 family)
   - Context-aware localization (not literal word-for-word)
   - Cultural adaptation for idioms and expressions
   - Tone customization (casual, formal, humorous, neutral)
@@ -39,7 +41,7 @@ Unified Flask backend for AI-powered video dubbing and subtitle generation.
 
 ```bash
 cd backend
-pip install flask>=3.0.0 flask-cors>=4.0.0 openai>=1.0.0 python-dotenv>=1.0.1 opencv-python>=4.7.0 numpy>=1.24.0 moviepy>=1.0.3 Pillow>=10.3.0 google-genai>=0.3.0 pandas>=2.0.0 werkzeug>=3.0.0
+pip install flask>=3.0.0 flask-cors>=4.0.0 openai>=1.0.0 python-dotenv>=1.0.1 opencv-python>=4.7.0 numpy>=1.24.0 moviepy>=1.0.3 Pillow>=10.3.0 google-generativeai>=0.8.0 pandas>=2.0.0 werkzeug>=3.0.0
 ```
 
 **Or install individually:**
@@ -48,7 +50,7 @@ pip install flask>=3.0.0 flask-cors>=4.0.0 openai>=1.0.0 python-dotenv>=1.0.1 op
 # Flask web framework
 pip install flask>=3.0.0 flask-cors>=4.0.0
 
-# OpenAI for Whisper and GPT
+# OpenAI for Whisper
 pip install openai>=1.0.0
 
 # Environment variables
@@ -57,8 +59,8 @@ pip install python-dotenv>=1.0.1
 # Video/Audio processing
 pip install opencv-python>=4.7.0 numpy>=1.24.0 moviepy>=1.0.3 Pillow>=10.3.0
 
-# Google Gemini
-pip install google-genai>=0.3.0
+# Google Gemini for translation and video analysis
+pip install google-generativeai>=0.8.0
 
 # Data processing
 pip install pandas>=2.0.0
@@ -236,12 +238,12 @@ Gemini-powered analysis:
 - **Supported formats**: MP4, AVI, MOV, MKV, FLV, WMV, WEBM
 - **Temporary files**: Automatically cleaned up after processing
 - **API Keys Required**:
-  - OpenAI (required for transcription/translation)
-  - Gemini (optional, for video analysis)
+  - OpenAI (required for transcription and translation)
+  - Gemini (optional, for video analysis only)
 
 ## Performance
 
 - **Short videos (<10 min)**: ~30-60 seconds processing
 - **Long videos (>10 min)**: Chunked processing, ~1 minute per 5-minute chunk
-- **Translation**: ~5-10 seconds for 100 subtitles
+- **Translation** (GPT-5 nano): ~2-4 seconds for 100 subtitles (ultra-fast + 90% cache discount)
 - **Video Analysis** (optional): Adds ~20-30 seconds
