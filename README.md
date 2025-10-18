@@ -86,6 +86,7 @@ Located in `backend/video-analysis/`, this engine provides:
 - **👥 Character Detection**: Identifies speakers and their roles in scenes
 - **🌍 Cultural Context**: Analyzes visual elements for cultural adaptation
 - **⚡ Real-time Processing**: Fast analysis with quota-aware retry logic
+- **🔇 Audio Removal**: Remove audio tracks from videos programmatically
 
 ### Backend Setup
 
@@ -111,7 +112,37 @@ python quota_aware_test.py --video "sample.mp4" --fps 0.1
 - **Speaker Identification**: Differentiates between multiple speakers
 - **Timing Optimization**: Uses scene changes to optimize subtitle timing
 
-See `backend/video-analysis/README.md` for detailed documentation.
+### Audio Removal & Extraction Tool
+
+**NEW!** Extract and save audio from videos - perfect for preparing videos for dubbing:
+
+```bash
+# Extract audio as MP3 + create silent video
+python remove_audio.py input.mp4 --method ffmpeg
+
+# Extract audio as WAV (lossless)
+python remove_audio.py input.mp4 --audio-format wav
+
+# Batch process with audio extraction
+python batch_remove_audio.py videos/ --method ffmpeg --audio-format mp3
+
+# Just remove audio (don't save it)
+python remove_audio.py input.mp4 --no-save-audio
+```
+
+**Features:**
+- 🎵 **Audio Extraction**: Saves audio separately (MP3, WAV, AAC, M4A, FLAC, OGG)
+- 🎬 **Silent Videos**: Creates video without audio
+- ⚡ **Two methods**: moviepy (Python) or FFmpeg (faster)
+- 📦 **Batch processing**: Process multiple videos at once
+- 🔄 **Automatic naming**: Smart file naming
+- 📊 **File statistics**: Size comparison and info
+
+**Output:** For `video.mp4`, you get:
+- `video_no_audio.mp4` - Silent video
+- `video_audio.mp3` - Extracted audio
+
+See `backend/video-analysis/AUDIO_EXTRACTION_UPDATE.md` for the new audio extraction feature!
 
 ## Design Philosophy
 
