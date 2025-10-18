@@ -44,11 +44,44 @@ def health_check():
     }
 
 
+def check_dependencies():
+    """Check if required dependencies are installed."""
+    import subprocess
+    import sys
+
+    required = ['ffmpeg', 'ffprobe']
+    missing = []
+
+    for cmd in required:
+        try:
+            subprocess.run([cmd, '-version'], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            missing.append(cmd)
+
+    if missing:
+        print(f"\n⚠️  WARNING: Missing required dependencies: {', '.join(missing)}")
+        print("Please install FFmpeg (includes ffprobe)")
+        print("  Windows: choco install ffmpeg  OR  scoop install ffmpeg")
+        print("  macOS:   brew install ffmpeg")
+        print("  Linux:   sudo apt install ffmpeg\n")
+    else:
+        print("✓ All dependencies found (ffmpeg, ffprobe)")
+
+
 def main():
     """Run the API server."""
     print("\n" + "="*70)
     print("DubPrime Backend API Server")
     print("="*70)
+
+    # Check dependencies
+    check_dependencies()
+
+    print("\nFeatures:")
+    print("  • Auto-chunking for videos >10 min (prevents sync drift)")
+    print("  • Natural language translation with GPT-4")
+    print("  • Accurate timing with Whisper API")
+
     print("\nEndpoints:")
     print("  GET  /api/health            - Health check")
     print("  POST /api/transcribe        - Transcribe video with Whisper")

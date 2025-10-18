@@ -5,6 +5,7 @@ Unified Flask backend for video transcription, translation, and audio processing
 ## Features
 
 - **Video Transcription**: OpenAI Whisper API integration for accurate speech-to-text
+  - **Auto-chunking**: Videos over 10 minutes are automatically split into 5-minute chunks to prevent sync drift
 - **Subtitle Translation**: GPT-powered natural language translation with localization
 - **Audio Extraction**: Extract and process audio from video files
 - **Video Analysis**: Gemini-powered video frame analysis
@@ -15,7 +16,32 @@ Unified Flask backend for video transcription, translation, and audio processing
 
 ```bash
 cd backend
-pip install -r requirements.txt
+pip install flask>=3.0.0 flask-cors>=4.0.0 openai>=1.0.0 python-dotenv>=1.0.1 opencv-python>=4.7.0 numpy>=1.24.0 moviepy>=1.0.3 Pillow>=10.3.0 google-genai>=0.3.0 pandas>=2.0.0 werkzeug>=3.0.0
+```
+
+**Or install individually:**
+
+```bash
+# Flask web framework
+pip install flask>=3.0.0 flask-cors>=4.0.0
+
+# OpenAI for Whisper and GPT
+pip install openai>=1.0.0
+
+# Environment variables
+pip install python-dotenv>=1.0.1
+
+# Video/Audio processing
+pip install opencv-python>=4.7.0 numpy>=1.24.0 moviepy>=1.0.3 Pillow>=10.3.0
+
+# Google Gemini
+pip install google-genai>=0.3.0
+
+# Data processing
+pip install pandas>=2.0.0
+
+# Utilities
+pip install werkzeug>=3.0.0
 ```
 
 ### 2. Configure Environment Variables
