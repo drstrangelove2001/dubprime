@@ -1,10 +1,21 @@
 import { useState } from 'react'
-import { 
-  Sparkles, Globe, Languages, MessageSquare, Users, 
-  Settings, ChevronDown, Wand2, Download, FileText
+import {
+  Sparkles, Globe, Languages, MessageSquare, Users,
+  Settings, ChevronDown, Wand2, Download, FileText, Loader2, AlertCircle
 } from 'lucide-react'
 
-function ContextPanel({ settings, setSettings, onGenerate, videoFile }) {
+function ContextPanel({
+  settings,
+  setSettings,
+  onGenerate,
+  videoFile,
+  subtitles,
+  isGenerating,
+  isTranslating,
+  generationError,
+  detectedLanguage,
+  progress
+}) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
 
   const handleInputChange = (field, value) => {
@@ -35,7 +46,7 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile }) {
             <select
               value={settings.targetLanguage}
               onChange={(e) => handleInputChange('targetLanguage', e.target.value)}
-              className="w-full bg-dark-elevated border border-dark-border rounded-lg px-4 py-2.5 
+              className="w-full bg-dark-elevated border border-dark-border rounded-lg px-4 py-2.5
                 text-sm text-gray-200 focus:outline-none focus:border-accent-primary cursor-pointer"
             >
               <option value="en">English</option>
@@ -49,6 +60,11 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile }) {
               <option value="hi">Hindi</option>
               <option value="pt">Portuguese</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1.5">
+              {subtitles && subtitles.length > 0
+                ? 'Change language to auto-translate subtitles'
+                : 'Language you want subtitles in (auto-translates if different from source)'}
+            </p>
           </div>
 
           {/* Source Language */}
@@ -60,7 +76,7 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile }) {
             <select
               value={settings.sourceLanguage}
               onChange={(e) => handleInputChange('sourceLanguage', e.target.value)}
-              className="w-full bg-dark-elevated border border-dark-border rounded-lg px-4 py-2.5 
+              className="w-full bg-dark-elevated border border-dark-border rounded-lg px-4 py-2.5
                 text-sm text-gray-200 focus:outline-none focus:border-accent-primary cursor-pointer"
             >
               <option value="auto">Auto-detect</option>
@@ -72,6 +88,9 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile }) {
               <option value="ko">Korean</option>
               <option value="zh">Chinese</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1.5">
+              Language spoken in the video (improves transcription accuracy)
+            </p>
           </div>
 
           {/* Cultural Context */}
@@ -184,22 +203,81 @@ function ContextPanel({ settings, setSettings, onGenerate, videoFile }) {
         </div>
       </div>
 
-      {/* Generate Button */}
-      <button
-        onClick={onGenerate}
-        disabled={!videoFile}
-        className={`
-          w-full py-4 rounded-xl font-semibold text-white text-lg
-          flex items-center justify-center space-x-3 transition-all
-          ${videoFile
-            ? 'bg-gradient-to-r from-accent-primary to-accent-secondary hover:shadow-lg hover:shadow-accent-primary/50 hover:scale-[1.02]'
-            : 'bg-dark-border text-gray-500 cursor-not-allowed'
-          }
-        `}
-      >
-        <Wand2 className="w-5 h-5" />
-        <span>Generate Subtitles</span>
-      </button>
+      {/* Action Buttons */}
+      <div className="space-y-3">
+        {/* Generate Button */}
+        <button
+          onClick={onGenerate}
+          disabled={!videoFile || isGenerating || isTranslating}
+          className={`
+            w-full py-4 rounded-xl font-semibold text-white text-lg
+            flex items-center justify-center space-x-3 transition-all
+            ${videoFile && !isGenerating && !isTranslating
+              ? 'bg-gradient-to-r from-accent-primary to-accent-secondary hover:shadow-lg hover:shadow-accent-primary/50 hover:scale-[1.02]'
+              : 'bg-dark-border text-gray-500 cursor-not-allowed'
+            }
+          `}
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Generating Subtitles...</span>
+            </>
+          ) : isTranslating ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Translating...</span>
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-5 h-5" />
+              <span>Generate Subtitles</span>
+            </>
+          )}
+        </button>
+
+        {/* Progress Bar */}
+        {isGenerating && progress && (
+          <div className="bg-dark-elevated rounded-lg p-4 border border-dark-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-300">{progress.message || 'Processing...'}</span>
+              <span className="text-sm font-semibold text-accent-primary">{progress.percentage}%</span>
+            </div>
+            <div className="w-full bg-dark-bg rounded-full h-2 mb-2">
+              <div
+                className="bg-gradient-to-r from-accent-primary to-accent-secondary rounded-full h-2 transition-all duration-300"
+                style={{ width: `${progress.percentage}%` }}
+              />
+            </div>
+            {progress.subtitles && progress.subtitles.length > 0 && (
+              <div className="text-xs text-gray-400 text-center">
+                {progress.subtitles.length} subtitles generated...
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Detected Language Info */}
+        {detectedLanguage && (
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2.5 flex items-center space-x-2">
+            <Globe className="w-4 h-4 text-blue-400" />
+            <p className="text-xs text-blue-300">
+              Detected Language: <span className="font-semibold">{detectedLanguage.toUpperCase()}</span>
+            </p>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {generationError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-start space-x-2 animate-slide-up">
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-300">Error</p>
+              <p className="text-xs text-red-400 mt-0.5">{generationError}</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Export Options */}
       <div className="bg-dark-surface rounded-2xl border border-dark-border p-6">
